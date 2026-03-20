@@ -8,15 +8,32 @@ export function FinanceProvider({ children }) {
     return savedData ? JSON.parse(savedData) : [];
   });
 
+  const [cards, setCards] = useState(() => {
+    const savedCards = localStorage.getItem('finance_cards');
+    return savedCards ? JSON.parse(savedCards) : [];
+  });
+
   useEffect(() => {
     localStorage.setItem('finance_data', JSON.stringify(transactions));
   }, [transactions]);
 
+  useEffect(() => {
+    localStorage.setItem('finance_cards', JSON.stringify(cards));
+  }, [cards]);
+
   const addTransaction = (newTransaction) => {
-    setTransactions(prev => [
-      { id: Date.now(), ...newTransaction },
-      ...prev
-    ]);
+    setTransactions(prev => [{ id: Date.now(), ...newTransaction }, ...prev]);
+  };
+
+  const addCard = (type) => {
+    setCards(prev => {
+      if (prev.some(card => card.type === type)) return prev;
+      return [...prev, { id: Date.now(), type }];
+    });
+  };
+
+  const removeCard = (id) => {
+    setCards(prev => prev.filter(card => card.id !== id));
   };
 
   const getBalance = () => {
@@ -27,18 +44,13 @@ export function FinanceProvider({ children }) {
 
   const formatRupiah = (angka) => {
     return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
+      style: 'currency', currency: 'IDR', minimumFractionDigits: 0
     }).format(angka);
   };
 
   return (
     <FinanceContext.Provider value={{
-      transactions,
-      addTransaction,
-      balance: getBalance(),
-      formatRupiah
+      transactions, cards, addTransaction, addCard, removeCard, balance: getBalance(), formatRupiah
     }}>
       {children}
     </FinanceContext.Provider>

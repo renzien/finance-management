@@ -15,7 +15,18 @@ export default function TransactionModal({ isOpen, onClose, defaultType = 'expen
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!name || !amount) return;
-    addTransaction({ name, amount: Number(amount), type, date });
+    
+    // Mengambil jam saat ini secara real-time
+    const currentTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+    addTransaction({ 
+      name, 
+      amount: Number(amount), 
+      type, 
+      date,
+      time: currentTime // Menyimpan waktu ke gudang data
+    });
+    
     setName(''); setAmount('');
     onClose();
   };

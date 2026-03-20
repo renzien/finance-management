@@ -1,159 +1,162 @@
-import React, { useState } from 'react';
-import { Wallet, Plus, ArrowDownLeft, ArrowUpRight, PieChart } from 'lucide-react';
-import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, CartesianGrid, YAxis } from 'recharts';
+import React, { useState, useRef, useEffect } from 'react';
+import { Wallet, Plus, ArrowDownLeft, ArrowUpRight, PieChart, CreditCard, ShieldCheck, Cpu, Trash2 } from 'lucide-react';
+import { BarChart, Bar, LineChart, Line, XAxis, Tooltip, ResponsiveContainer, CartesianGrid, YAxis } from 'recharts';
 import Sidebar from '../layout/Sidebar';
 import DesktopHeader from '../layout/DesktopHeader';
 import TransactionModal from '../TransactionModal';
+import AddCardModal from '../AddCardModal';
 import { useFinance } from '../../context/FinanceContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const chartData = [ { name: 'Jan', income: 4000, expense: 2400 }, { name: 'Feb', income: 3000, expense: 1398 }, { name: 'Mar', income: 2000, expense: 9800 } ];
 
-export default function DesktopDashboard() {
-  const { balance, formatRupiah, transactions } = useFinance();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview'); // State navigasi: 'overview' atau 'statistics'
+const getCardStyle = (type) => {
+  switch(type) {
+    case 'gopay': return 'from-cyan-400 via-cyan-500 to-cyan-600 shadow-cyan-200';
+    case 'dana': return 'from-blue-600 via-blue-700 to-blue-800 shadow-blue-300';
+    case 'bank': return 'from-yellow-400 via-yellow-500 to-yellow-600 shadow-yellow-200';
+    default: return 'from-slate-800 to-slate-900 shadow-slate-200';
+  }
+};
+const getCardName = (type) => {
+  switch(type) {
+    case 'gopay': return 'GoPay'; case 'dana': return 'DANA'; case 'bank': return 'Bank Card'; default: return 'Debit Card';
+  }
+};
 
-  // Varian Animasi Slide Up untuk transisi halaman
-  const pageVariants = {
-    hidden: { opacity: 0, y: 40 },
-    visible: { 
-      opacity: 1, 
-      y: 0, 
-      transition: { duration: 0.4, type: "spring", bounce: 0.2, staggerChildren: 0.1 } 
-    },
-    exit: { opacity: 0, y: -40, transition: { duration: 0.3 } }
-  };
+export default function DesktopDashboard() {
+  const { balance, formatRupiah, transactions, cards, removeCard } = useFinance();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCardModalOpen, setIsCardModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview'); 
+  
+  // State dan Ref untuk logika Drag Carousel
+  const [dragConstraint, setDragConstraint] = useState(0);
+  const carouselRef = useRef(null);
+
+  useEffect(() => {
+    if (carouselRef.current) {
+      // Menghitung seberapa jauh user bisa menggeser (lebar total isi - lebar container)
+      setDragConstraint(carouselRef.current.scrollWidth - carouselRef.current.offsetWidth);
+    }
+  }, [cards]);
 
   return (
-    <div className="flex h-screen w-full bg-[#f8fafc] overflow-hidden">
-      {/* Mengirim props activeTab ke Sidebar agar Sidebar bisa mengubah halaman */}
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+    <div className="flex h-screen w-full bg-[#f8fafc] overflow-hidden select-none font-quicksand">
+      <style>{`.hide-scrollbar::-webkit-scrollbar { display: none; } .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }`}</style>
       
-      <div className="flex-1 p-8 overflow-y-auto">
+      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} openCardModal={() => setIsCardModalOpen(true)} />
+      
+      <div className="flex-1 p-10 overflow-y-auto hide-scrollbar">
         <DesktopHeader />
         
-        {/* AnimatePresence mengizinkan animasi keluar (exit) sebelum animasi masuk */}
         <AnimatePresence mode="wait">
-          
-          {/* HALAMAN 1: OVERVIEW */}
           {activeTab === 'overview' && (
-            <motion.div 
-              key="overview"
-              variants={pageVariants}
-              initial="hidden" 
-              animate="visible" 
-              exit="exit"
-            >
-              <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="mb-8 flex justify-between items-end">
-                <div>
-                  <p className="text-sm text-gray-500 font-medium mb-1">👋 Welcome In, Alip</p>
-                  <h1 className="text-3xl font-bold text-slate-800">Financial Overview</h1>
-                </div>
-                <button onClick={() => setIsModalOpen(true)} className="bg-slate-900 text-white px-6 py-2.5 rounded-full flex items-center gap-2 font-medium hover:bg-slate-800 transition-colors">
-                  Add Record <Plus size={18} />
-                </button>
-              </motion.div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                <motion.div variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } }} className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-between">
-                  <div className="flex items-center gap-2 text-gray-500 font-medium mb-6"><Wallet size={20} /> My Balance</div>
-                  <div className="bg-gradient-to-br from-emerald-400 to-teal-600 p-6 rounded-2xl text-white shadow-lg shadow-emerald-200 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-10 -mt-10"></div>
-                    <p className="text-emerald-50 text-sm font-medium mb-1">Total Balance</p>
-                    <h2 className="text-3xl font-bold mb-8 tracking-wide">{formatRupiah(balance)}</h2>
-                    <div><p className="text-xs text-emerald-100 mb-1">Card Holder Name</p><p className="text-sm font-semibold tracking-wider">ALIP</p></div>
-                  </div>
-                </motion.div>
-
-                <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 lg:col-span-2">
-                  <div className="flex justify-between items-center mb-6"><p className="text-sm font-bold text-slate-800">Grafik Sementara (Dummy)</p></div>
-                  <div className="h-48 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#94a3b8'}} />
-                        <Tooltip cursor={{fill: 'transparent'}} />
-                        <Bar dataKey="income" fill="#34d399" radius={[4, 4, 4, 4]} barSize={8} />
-                        <Bar dataKey="expense" fill="#60a5fa" radius={[4, 4, 4, 4]} barSize={8} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </motion.div>
+            <motion.div key="overview" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+              <div className="mb-10 flex justify-between items-end">
+                <div><p className="text-xs text-gray-400 font-bold tracking-[0.3em] uppercase mb-1">Analisis Keuangan</p><h1 className="text-4xl font-bold text-slate-800 tracking-tight">Halo, Alip</h1></div>
+                <button onClick={() => setIsModalOpen(true)} className="bg-slate-900 text-white px-8 py-3.5 rounded-full flex items-center gap-3 font-bold shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all hover:scale-105 active:scale-95">Add Record <Plus size={20} /></button>
               </div>
 
-              {/* Bagian Transaksi Terakhir */}
-              <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-bold text-slate-800">Transaksi Terakhir</h3>
-                  <button className="text-sm font-semibold text-emerald-600 hover:text-emerald-700 transition-colors">Lihat Semua</button>
-                </div>
-                
-                <div className="flex flex-col gap-3">
-                  {transactions.length === 0 ? (
-                    <p className="text-center text-gray-400 text-sm py-6">Belum ada transaksi dicatat.</p>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 mb-10">
+                {/* --- Kontainer Saldo & Kartu Drag Carousel --- */}
+                <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100 flex flex-col justify-between overflow-hidden h-[340px]">
+                  <div className="flex items-center justify-between mb-4 px-2">
+                    <span className="flex items-center gap-2 text-slate-400 font-bold text-xs tracking-[0.2em] uppercase"><Wallet size={16} /> My Balance</span>
+                    <button onClick={() => setIsCardModalOpen(true)} className="text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-4 py-2 rounded-full transition-all hover:bg-emerald-100">+ Tambah</button>
+                  </div>
+                  
+                  {cards.length === 0 ? (
+                    <div className="flex-1 bg-slate-50 border-2 border-dashed border-slate-200 rounded-[32px] flex flex-col items-center justify-center text-slate-400"><p className="font-bold text-sm tracking-wide">Belum ada kartu terdaftar</p></div>
                   ) : (
-                    transactions.map((tx) => (
-                      <div key={tx.id} className="bg-slate-50 p-4 rounded-2xl flex items-center justify-between border border-gray-100 transition-all hover:bg-white hover:shadow-sm">
-                        <div className="flex items-center gap-4">
-                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${tx.type === 'income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
-                            {tx.type === 'income' ? <ArrowDownLeft size={20} /> : <ArrowUpRight size={20} />}
-                          </div>
-                          <div>
-                            <p className="font-bold text-slate-800">{tx.name}</p>
-                            <p className="text-xs text-gray-400 font-medium mt-0.5">{tx.date}</p>
-                          </div>
-                        </div>
-                        <span className={`font-bold ${tx.type === 'income' ? 'text-emerald-500' : 'text-slate-800'}`}>
-                          {tx.type === 'income' ? '+' : '-'}{formatRupiah(tx.amount)}
-                        </span>
-                      </div>
-                    ))
+                    <div ref={carouselRef} className="overflow-hidden h-full flex items-center">
+                        <motion.div 
+                          drag="x" 
+                          dragConstraints={{ right: 0, left: -dragConstraint }}
+                          className="flex gap-6 cursor-grab active:cursor-grabbing px-2"
+                        >
+                            {cards.map(card => (
+                              <div key={card.id} className="w-[380px] shrink-0 relative group">
+                                {/* Tombol Discard */}
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); removeCard(card.id); }} 
+                                    className="absolute top-5 right-5 p-2.5 bg-rose-500 text-white rounded-2xl opacity-0 group-hover:opacity-100 transition-all z-20 shadow-xl hover:scale-110 active:scale-90"
+                                >
+                                    <Trash2 size={18} />
+                                </button>
+
+                                <div className={`w-full bg-gradient-to-br ${getCardStyle(card.type)} p-8 rounded-[32px] text-white shadow-2xl relative overflow-hidden`}>
+                                  <div className="absolute top-0 right-0 w-40 h-40 bg-white opacity-5 rounded-full -mr-15 -mt-15"></div>
+                                  
+                                  {/* Header Kartu */}
+                                  <div className="flex justify-between items-start mb-6 relative z-10">
+                                    <div>
+                                        <p className="text-white font-bold text-[10px] tracking-[0.3em] uppercase mb-2">{getCardName(card.type)}</p>
+                                        <Cpu size={32} className="text-white/60" />
+                                    </div>
+                                    <ShieldCheck size={32} className="text-white/80" />
+                                  </div>
+
+                                  {/* Nominal - Dinaikkan dan diperbesar sedikit */}
+                                  <h2 className="text-[2.75rem] font-bold mb-10 tracking-tight drop-shadow-md leading-none">{formatRupiah(balance)}</h2>
+                                  
+                                  {/* Informasi Kaki Kartu */}
+                                  <div className="flex justify-between items-end relative z-10">
+                                    <div>
+                                      <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/50 mb-1">Card Holder</p>
+                                      <p className="text-sm font-bold tracking-widest uppercase text-white">ALIP</p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/50 mb-1">CVV</p>
+                                      <p className="text-sm font-bold text-white tracking-widest">***</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                        </motion.div>
+                    </div>
                   )}
+                  {cards.length > 1 && <p className="text-[10px] text-center text-slate-300 font-bold tracking-[0.3em] mt-2 uppercase">← Drag kartu ke kiri/kanan →</p>}
                 </div>
-              </motion.div>
-            </motion.div>
-          )}
 
-          {/* HALAMAN 2: STATISTICS */}
-          {activeTab === 'statistics' && (
-            <motion.div 
-              key="statistics"
-              variants={pageVariants}
-              initial="hidden" 
-              animate="visible" 
-              exit="exit"
-              className="flex flex-col h-full"
-            >
-               <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="mb-8 flex justify-between items-end">
-                <div>
-                  <p className="text-sm text-gray-500 font-medium mb-1">📊 Analisis Data</p>
-                  <h1 className="text-3xl font-bold text-slate-800">Statistik Keuangan</h1>
-                </div>
-              </motion.div>
-
-              <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 flex-1 min-h-[500px]">
-                  <h3 className="text-lg font-bold text-slate-800 mb-8 flex items-center gap-2">
-                    <PieChart className="text-emerald-500" /> Grafik Arus Kas Lengkap (Dummy)
-                  </h3>
-                  <div className="h-full w-full pb-10">
+                {/* Bagian Statistik Overview tetap sama... */}
+                <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100 lg:col-span-2">
+                  <div className="mb-10"><p className="text-[10px] text-gray-400 font-bold tracking-[0.2em] uppercase">Expense Analysis</p></div>
+                  <div className="h-56 w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#94a3b8'}} dy={10} />
-                        <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#94a3b8'}} />
+                      <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#cbd5e1', fontWeight: 'bold'}} />
                         <Tooltip cursor={{fill: '#f8fafc'}} />
-                        <Bar dataKey="income" fill="#34d399" radius={[6, 6, 0, 0]} barSize={32} />
-                        <Bar dataKey="expense" fill="#60a5fa" radius={[6, 6, 0, 0]} barSize={32} />
+                        <Bar dataKey="income" fill="#10b981" radius={[6, 6, 6, 6]} barSize={8} />
+                        <Bar dataKey="expense" fill="#3b82f6" radius={[6, 6, 6, 6]} barSize={8} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
-              </motion.div>
+                </div>
+              </div>
+
+              {/* Tabel Transaksi Terakhir Desktop tetap sama... */}
+              <div className="bg-white p-10 rounded-[40px] shadow-sm border border-slate-100">
+                <h3 className="text-lg font-bold text-slate-800 mb-8 tracking-tight uppercase">Aktivitas Terakhir</h3>
+                <div className="flex flex-col gap-5">
+                  {transactions.map(tx => (
+                    <div key={tx.id} className="bg-slate-50 p-6 rounded-[28px] flex items-center justify-between hover:bg-white hover:border-slate-200 hover:shadow-xl transition-all duration-300 group border border-transparent">
+                      <div className="flex items-center gap-6">
+                        <div className={`w-16 h-16 rounded-[22px] flex items-center justify-center transition-transform group-hover:rotate-12 ${tx.type === 'income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>{tx.type === 'income' ? <ArrowDownLeft size={28} /> : <ArrowUpRight size={28} />}</div>
+                        <div><p className="font-bold text-slate-800 text-xl tracking-tight">{tx.name}</p><p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">{tx.date} • {tx.time}</p></div>
+                      </div>
+                      <span className={`font-bold text-2xl tracking-tighter ${tx.type === 'income' ? 'text-emerald-500' : 'text-slate-800'}`}>{tx.type === 'income' ? '+' : '-'}{formatRupiah(tx.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </motion.div>
           )}
-
         </AnimatePresence>
       </div>
       <TransactionModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <AddCardModal isOpen={isCardModalOpen} onClose={() => setIsCardModalOpen(false)} />
     </div>
   );
 }
